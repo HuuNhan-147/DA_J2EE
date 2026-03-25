@@ -1,4 +1,4 @@
-package com.example.DA_J2EE;
+package com.example.DACK_J2EE;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

@@ -1,4 +1,4 @@
-package com.example.DA_J2EE.config;
+package com.example.DACK_J2EE.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;

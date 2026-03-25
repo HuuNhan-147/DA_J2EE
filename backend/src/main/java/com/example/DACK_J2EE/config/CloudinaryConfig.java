@@ -1,4 +1,4 @@
-package com.example.DA_J2EE.config;
+package com.example.DACK_J2EE.config;
 
 import com.cloudinary.Cloudinary;
 import org.springframework.beans.factory.annotation.Value;
