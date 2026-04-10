@@ -1,5 +1,7 @@
 package com.example.DACK_J2EE.service;
 
+import com.example.DACK_J2EE.entity.Product;
+import com.example.DACK_J2EE.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -10,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class AiAgentService {
@@ -22,6 +25,9 @@ public class AiAgentService {
 
     @Autowired
     private RedisChatService redisChatService;
+
+    @Autowired
+    private ProductRepository productRepository;
 
     public Map<String, Object> processMessage(String message, String sessionId, String userId) {
         try {
@@ -41,55 +47,30 @@ public class AiAgentService {
             List<Map<String, Object>> messagesHistory = redisChatService.getMessages(userId, sessionId, 20, 0);
             
             List<Map<String, Object>> contents = new ArrayList<>();
-            // Add system instruction as initial context
+            // Lấy danh sách sản phẩm thực tế từ DB
+            List<Product> products = productRepository.findAll();
+            String productContext = products.stream()
+                .map(p -> String.format("- %s: Giá %sđ, Mô tả: %s, Ảnh: %s (ID: %d)", 
+                        p.getName(), p.getPrice().toString(), p.getDescription(), p.getImage(), p.getId()))
+                .collect(Collectors.joining("\n"));
+
+            String systemPrompt = "# VAI TRÒ\n" +
+                                "Bạn là trợ lý bán hàng chuyên nghiệp của cửa hàng E-Commate.\n" +
+                                "Nhiệm vụ của bạn là tư vấn cho khách hàng dựa trên DANH SÁCH SẢN PHẨM THỰC TẾ dưới đây.\n\n" +
+                                "# DANH SÁCH SẢN PHẨM CỦA CỬA HÀNG:\n" +
+                                productContext + "\n\n" +
+                                "# NGUYÊN TẮC:\n" +
+                                "1. CHỈ tư vấn những sản phẩm có trong danh sách trên.\n" +
+                                "2. Nếu khách hỏi sản phẩm không có, hãy lịch sự thông báo và gợi ý sản phẩm tương tự đang có sẵn.\n" +
+                                "3. Luôn thân thiện, dùng emoji 🛍️, ✅, ⭐.\n" +
+                                "4. Trả lời ngắn gọn, tập trung vào tính năng và giá cả.\n" +
+                                "5. ĐỊNH DẠNG ĐẶC BIỆT: Khi bạn muốn giới thiệu một hoặc nhiều sản phẩm cụ thể để khách hàng xem, hãy thêm mã này vào CUỐI câu trả lời:\n" +
+                                "   [PRODUCTS][{\"id\": ID, \"name\": \"Tên SP\", \"price\": GIÁ_SỐ, \"image\": \"URL_ẢNH\"}][/PRODUCTS]\n" +
+                                "   (Lấy chính xác thông tin từ danh sách được cung cấp. URL ảnh nếu là tương đối hãy giữ nguyên)\n" +
+                                "6. Không trả lời các câu hỏi ngoài lề không liên quan đến mua sắm và sản phẩm của cửa hàng.";
+
             Map<String, Object> systemContentPart = new HashMap<>();
-            systemContentPart.put("text", "# VAI TRÒ\r\n" + //
-                                "Bạn là **E-Commate Store** — trợ lý tư vấn sản phẩm thông minh của cửa hàng.\r\n" + //
-                                "Nhiệm vụ DUY NHẤT của bạn là giúp khách hàng TÌM KIẾM và TƯ VẤN sản phẩm có trong cửa hàng.\r\n" + //
-                                "\r\n" + //
-                                "# NGUYÊN TẮC CỐT LÕI\r\n" + //
-                                "1. CHỈ tư vấn về sản phẩm có trong DANH SÁCH SẢN PHẨM được cung cấp ở đầu cuộc trò chuyện.\r\n" + //
-                                "2. KHÔNG bịa đặt thông tin sản phẩm, giá cả hoặc tính năng không có trong danh sách.\r\n" + //
-                                "3. Nếu không tìm thấy sản phẩm phù hợp → Thành thật thông báo và gợi ý sản phẩm gần nhất.\r\n" + //
-                                "4. LUÔN trả lời bằng tiếng Việt thân thiện, ngắn gọn và dễ hiểu.\r\n" + //
-                                "5. KHÔNG làm bất cứ tác vụ nào khác ngoài tư vấn sản phẩm.\r\n" + //
-                                "\r\n" + //
-                                "# CÁCH TƯ VẤN SẢN PHẨM\r\n" + //
-                                "\r\n" + //
-                                "## Khi khách hỏi về sản phẩm:\r\n" + //
-                                "- Tìm trong danh sách sản phẩm đã cung cấp\r\n" + //
-                                "- Trình bày tên, giá, mô tả ngắn gọn và đánh giá (nếu có)\r\n" + //
-                                "- Gợi ý 1-3 sản phẩm phù hợp nhất với nhu cầu\r\n" + //
-                                "- Hỏi thêm để hiểu rõ hơn nhu cầu của khách (ngân sách, mục đích sử dụng...)\r\n" + //
-                                "\r\n" + //
-                                "## Khi khách hỏi giá:\r\n" + //
-                                "- Cung cấp giá chính xác từ danh sách\r\n" + //
-                                "- Format giá bằng VNĐ: \"1.500.000₫\" hoặc \"1,500,000₫\"\r\n" + //
-                                "\r\n" + //
-                                "## Khi so sánh sản phẩm:\r\n" + //
-                                "- So sánh các điểm khác biệt rõ ràng\r\n" + //
-                                "- Đưa ra gợi ý dựa trên nhu cầu khách\r\n" + //
-                                "\r\n" + //
-                                "## Khi không tìm thấy sản phẩm:\r\n" + //
-                                "- Thông báo thành thật: \"Hiện tại cửa hàng chưa có [tên sản phẩm]\"\r\n" + //
-                                "- Gợi ý sản phẩm tương tự có sẵn trong danh sách\r\n" + //
-                                "\r\n" + //
-                                "# PHONG CÁCH GIAO TIẾP\r\n" + //
-                                "- Thân thiện, nhiệt tình như nhân viên bán hàng chuyên nghiệp\r\n" + //
-                                "- Dùng emoji phù hợp: 🛍️ 💰 ⭐ 📦 ✅\r\n" + //
-                                "- Ngắn gọn, không lan man\r\n" + //
-                                "- Luôn kết thúc bằng câu hỏi để tiếp tục tư vấn\r\n" + //
-                                "\r\n" + //
-                                "# FORMAT TRẢ LỜI\r\n" + //
-                                "- KHÔNG dùng Markdown (**, ##, *) trong câu trả lời\r\n" + //
-                                "- Dùng dấu \"•\" để liệt kê\r\n" + //
-                                "- Xuống dòng để phân tách thông tin\r\n" + //
-                                "- Tối đa 200 từ mỗi câu trả lời (trừ khi liệt kê nhiều sản phẩm)\r\n" + //
-                                "\r\n" + //
-                                "# GIỚI HẠN\r\n" + //
-                                "- KHÔNG hỗ trợ đặt hàng, thanh toán, quản lý tài khoản qua chat\r\n" + //
-                                "- Nếu khách muốn đặt hàng → hướng dẫn: \"Bạn có thể thêm sản phẩm vào giỏ hàng trực tiếp trên website để đặt hàng nhé!\"\r\n" + //
-                                "- KHÔNG trả lời câu hỏi ngoài phạm vi sản phẩm của cửa hàng");
+            systemContentPart.put("text", systemPrompt);
             Map<String, Object> systemPartMap = new HashMap<>();
             systemPartMap.put("role", "user");
             systemPartMap.put("parts", List.of(systemContentPart));
@@ -150,46 +131,6 @@ public class AiAgentService {
         } catch (Exception e) {
              e.printStackTrace();
              return Map.of("success", false, "reply", "Xin lỗi, đã xảy ra lỗi trong quá trình xử lý AI: " + e.getMessage());
-        }
-    }
-
-    public String askAdmin(String question) {
-        try {
-            RestTemplate restTemplate = new RestTemplate();
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-
-            String url = geminiApiUrl + "?key=" + geminiApiKey;
-
-            Map<String, Object> contentPart = new HashMap<>();
-            contentPart.put("text", "Bạn là AI hỗ trợ quản trị viên hệ thống. Trả lời câu hỏi này về quản trị hệ thống: " + question);
-
-            Map<String, Object> partMap = new HashMap<>();
-            partMap.put("parts", List.of(contentPart));
-
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("contents", List.of(partMap));
-
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
-            
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                Map<String, Object> body = response.getBody();
-                List<Map<String, Object>> candidates = (List<Map<String, Object>>) body.get("candidates");
-                if (candidates != null && !candidates.isEmpty()) {
-                    Map<String, Object> candidate = candidates.get(0);
-                    Map<String, Object> resContent = (Map<String, Object>) candidate.get("content");
-                    List<Map<String, Object>> parts = (List<Map<String, Object>>) resContent.get("parts");
-                    if (parts != null && !parts.isEmpty()) {
-                        return (String) parts.get(0).get("text");
-                    }
-                }
-            }
-            return "Không có phản hồi.";
-        } catch(Exception e) {
-            e.printStackTrace();
-            return "Lỗi server khi hỏi AI: " + e.getMessage();
         }
     }
 }
