@@ -6,6 +6,11 @@ import com.example.DACK_J2EE.repository.UserRepository;
 import com.example.DACK_J2EE.security.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import jakarta.mail.internet.MimeMessage;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -24,6 +29,9 @@ public class UserService {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
+    @Autowired
+    private JavaMailSender mailSender;
+
     public AuthResponseDTO createUser(UserRegisterDTO dto) {
         if (userRepository.existsByEmail(dto.getEmail())) {
             throw new RuntimeException("Email already exists!");
@@ -34,12 +42,12 @@ public class UserService {
                 .email(dto.getEmail())
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .phone(dto.getPhone())
-                .isAdmin(false)
+                .isAdmin(dto.getIsAdmin() != null ? dto.getIsAdmin() : false)
                 .build();
 
         User savedUser = userRepository.save(user);
 
-        String accessToken = jwtTokenProvider.generateTokenFromId(savedUser.getId().toString());
+        String accessToken = jwtTokenProvider.generateTokenFromId(savedUser.getId().toString(), savedUser.getIsAdmin());
 
         return AuthResponseDTO.builder()
                 .message("Account created successfully!")
@@ -56,7 +64,7 @@ public class UserService {
             throw new RuntimeException("Password is incorrect!");
         }
 
-        String accessToken = jwtTokenProvider.generateTokenFromId(user.getId().toString());
+        String accessToken = jwtTokenProvider.generateTokenFromId(user.getId().toString(), user.getIsAdmin());
 
         return AuthResponseDTO.builder()
                 .message("Login successful!")
@@ -90,11 +98,7 @@ public class UserService {
             return getAllUsers();
         }
         
-        String searchKeyword = "%" + keyword.toLowerCase() + "%";
-        return userRepository.findAll().stream()
-                .filter(user -> user.getName().toLowerCase().contains(keyword.toLowerCase()) ||
-                               user.getEmail().toLowerCase().contains(keyword.toLowerCase()) ||
-                               user.getPhone().contains(keyword))
+        return userRepository.findBySearchKeyword(keyword.trim()).stream()
                 .map(this::convertToProfileDTO)
                 .collect(Collectors.toList());
     }
@@ -139,6 +143,69 @@ public class UserService {
 
         User updatedUser = userRepository.save(user);
         return convertToProfileDTO(updatedUser);
+    }
+
+    public void updatePassword(Long userId, String oldPassword, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User does not exist!"));
+
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new RuntimeException("Old password is incorrect!");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    public void forgotPassword(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Email not found!"));
+
+        String token = UUID.randomUUID().toString();
+        user.setResetPasswordToken(token);
+        user.setResetPasswordExpires(LocalDateTime.now().plusMinutes(15));
+        userRepository.save(user);
+
+        sendEmail(email, token);
+    }
+
+    private void sendEmail(String email, String token) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+
+            helper.setTo(email);
+            helper.setSubject("Reset Your Password");
+
+            String resetLink = "http://localhost:5173/reset-password/" + token;
+            String content = "<p>Hello,</p>"
+                    + "<p>You have requested to reset your password.</p>"
+                    + "<p>Click the link below to change your password:</p>"
+                    + "<p><a href=\"" + resetLink + "\">Change my password</a></p>"
+                    + "<br>"
+                    + "<p>Ignore this email if you did remember your password, "
+                    + "or you have not made the request.</p>";
+
+            helper.setText(content, true);
+
+            mailSender.send(message);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while sending email: " + e.getMessage());
+        }
+    }
+
+    public void resetPassword(String token, String newPassword) {
+        User user = userRepository.findByResetPasswordToken(token)
+                .orElseThrow(() -> new RuntimeException("Invalid token!"));
+
+        if (user.getResetPasswordExpires().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Token has expired!");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setResetPasswordToken(null);
+        user.setResetPasswordExpires(null);
+        userRepository.save(user);
     }
 
     private UserProfileDTO convertToProfileDTO(User user) {

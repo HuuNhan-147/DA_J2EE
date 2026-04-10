@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Table(name = "order_items")
 @Getter
 @Setter
@@ -17,6 +18,7 @@ public class OrderItem {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Order order;
 
     @ManyToOne(fetch = FetchType.LAZY)

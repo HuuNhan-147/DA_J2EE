@@ -81,13 +81,15 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
 
-                        .requestMatchers("/api/users/register", "/api/users/login").permitAll()
+                        .requestMatchers("/api/users/register", "/api/users/login", "/api/users/forgot-password", "/api/users/reset-password/**").permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                         
                         .requestMatchers(HttpMethod.GET, "/api/vnpay/return").permitAll()
+                        
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()
 
                         .requestMatchers(HttpMethod.POST, "/api/upload").permitAll()
 

@@ -6,13 +6,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class UserRegisterDTO {
-    private String name;
-    private String email;
+public class ResetPasswordDTO {
     private String password;
-    private String phone;
-    private Boolean isAdmin;
 }

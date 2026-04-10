@@ -4,22 +4,11 @@ import com.example.DACK_J2EE.dto.CartDTO;
 import com.example.DACK_J2EE.dto.CartItemDTO;
 import com.example.DACK_J2EE.service.CartService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -30,11 +19,13 @@ public class CartController {
     @Autowired
     private CartService cartService;
 
+    // ===== LẤY USER ID TỪ JWT =====
     private Long getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return Long.parseLong(authentication.getName());
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return Long.parseLong(auth.getName());
     }
 
+    // ================= GET CART =================
     @GetMapping
     public ResponseEntity<?> getCart() {
         try {
@@ -42,12 +33,11 @@ public class CartController {
             CartDTO cart = cartService.getCart(userId);
             return ResponseEntity.ok(cart);
         } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("message", "Error: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }
 
+    // ================= ADD =================
     @PostMapping("/add")
     public ResponseEntity<?> addToCart(@RequestBody CartItemDTO itemDTO) {
         try {
@@ -55,49 +45,47 @@ public class CartController {
             CartDTO cart = cartService.addToCart(userId, itemDTO);
             return ResponseEntity.ok(cart);
         } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("message", "Error: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }
 
-    @DeleteMapping("/remove/{productId}")
+    // ================= REMOVE =================
+    @DeleteMapping("/{productId}") // ✅ khớp frontend
     public ResponseEntity<?> removeFromCart(@PathVariable Long productId) {
         try {
             Long userId = getCurrentUserId();
             CartDTO cart = cartService.removeFromCart(userId, productId);
             return ResponseEntity.ok(cart);
         } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("message", "Error: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }
 
-    @DeleteMapping("/clear")
-    public ResponseEntity<?> clearCart() {
+    // ================= UPDATE =================
+    @PutMapping("/update") // ✅ nhận body giống frontend
+    public ResponseEntity<?> updateCartItem(@RequestBody CartItemDTO itemDTO) {
         try {
             Long userId = getCurrentUserId();
-            CartDTO cart = cartService.clearCart(userId);
+            CartDTO cart = cartService.updateCartItem(
+                    userId,
+                    itemDTO.getProductId(),
+                    itemDTO.getQuantity()
+            );
             return ResponseEntity.ok(cart);
         } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("message", "Error: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }
 
-    @PutMapping("/update/{productId}")
-    public ResponseEntity<?> updateCartItem(@PathVariable Long productId, 
-            @RequestParam Integer quantity) {
+    // ================= COUNT =================
+    @GetMapping("/count")
+    public ResponseEntity<?> getCartCount() {
         try {
             Long userId = getCurrentUserId();
-            CartDTO cart = cartService.updateCartItem(userId, productId, quantity);
-            return ResponseEntity.ok(cart);
+            int count = cartService.getCartItemCount(userId);
+            return ResponseEntity.ok(Map.of("count", count));
         } catch (Exception e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("message", "Error: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ResponseEntity.status(500).body(Map.of("message", e.getMessage()));
         }
     }
 }

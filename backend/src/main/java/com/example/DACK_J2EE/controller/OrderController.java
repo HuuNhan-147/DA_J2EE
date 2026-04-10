@@ -117,11 +117,15 @@ public class OrderController {
     }
 
     @PutMapping("/{id}/deliver")
-    public ResponseEntity<?> updateOrderToDelivered(@PathVariable Long id) {
+    public ResponseEntity<?> updateOrderToDelivered(@PathVariable Long id, @RequestBody(required = false) Map<String, Boolean> payload) {
         try {
-            Order order = orderService.updateOrderDeliveryStatus(id, true);
+            Boolean isDelivered = true;
+            if (payload != null && payload.containsKey("isDelivered")) {
+                isDelivered = payload.get("isDelivered");
+            }
+            Order order = orderService.updateOrderDeliveryStatus(id, isDelivered);
             Map<String, Object> response = new HashMap<>();
-            response.put("message", "Order marked as delivered!");
+            response.put("message", "Order delivery status updated!");
             response.put("order", order);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -133,12 +137,51 @@ public class OrderController {
 
     @PutMapping("/{id}/status")
     public ResponseEntity<?> updateOrderStatus(@PathVariable Long id,
-            @RequestParam String paymentStatus) {
+            @RequestBody Map<String, Boolean> status) {
         try {
-            Order order = orderService.updateOrderPaymentStatus(id, paymentStatus);
+            Boolean isPaid = status.get("isPaid");
+            Boolean isDelivered = status.get("isDelivered");
+            
+            Order order = null;
+            if (isPaid != null) {
+                String paymentStatus = isPaid ? "paid" : "unpaid";
+                order = orderService.updateOrderPaymentStatus(id, paymentStatus);
+            }
+            if (isDelivered != null) {
+                order = orderService.updateOrderDeliveryStatus(id, isDelivered);
+            }
+            
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Order status updated!");
             response.put("order", order);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<?> searchOrders(@RequestParam String query) {
+        try {
+            List<Order> orders = orderService.searchOrdersByCode(query);
+            Map<String, Object> response = new HashMap<>();
+            response.put("orders", orders);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    @GetMapping("/search-user")
+    public ResponseEntity<?> searchOrdersByUserName(@RequestParam String name) {
+        try {
+            List<Order> orders = orderService.searchOrdersByUserName(name);
+            Map<String, Object> response = new HashMap<>();
+            response.put("orders", orders);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();

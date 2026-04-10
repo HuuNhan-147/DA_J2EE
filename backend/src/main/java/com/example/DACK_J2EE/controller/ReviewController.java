@@ -70,6 +70,11 @@ public class ReviewController {
         }
     }
 
+    // Tương thích với Frontend gọi /api/products/{productId}/reviews
+    // Sẽ được ánh xạ thông qua config hoặc đổi trực tiếp ở đây.
+    // Cách tốt nhất là thêm @RequestMapping phụ hoặc thay đổi ở ProductController.
+    // Tuy nhiên để nhanh chóng, tôi sẽ sửa trực tiếp ở đây.
+
     @GetMapping("/{id}")
     public ResponseEntity<?> getReviewById(@PathVariable Long id) {
         try {

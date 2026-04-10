@@ -144,5 +144,38 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
+
+    @PutMapping("/update-password")
+    public ResponseEntity<?> updatePassword(@RequestBody UpdatePasswordDTO dto) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            Long userId = Long.parseLong(authentication.getName());
+
+            userService.updatePassword(userId, dto.getOldPassword(), dto.getNewPassword());
+            return ResponseEntity.ok(Map.of("message", "Password updated successfully!"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordDTO dto) {
+        try {
+            userService.forgotPassword(dto.getEmail());
+            return ResponseEntity.ok(Map.of("message", "Reset link has been sent to your email."));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/reset-password/{token}")
+    public ResponseEntity<?> resetPassword(@PathVariable String token, @RequestBody ResetPasswordDTO dto) {
+        try {
+            userService.resetPassword(token, dto.getPassword());
+            return ResponseEntity.ok(Map.of("message", "Password has been reset successfully."));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
+        }
+    }
 }
 

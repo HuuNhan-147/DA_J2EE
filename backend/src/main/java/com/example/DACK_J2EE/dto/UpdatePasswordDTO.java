@@ -6,13 +6,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class UserRegisterDTO {
-    private String name;
-    private String email;
-    private String password;
-    private String phone;
-    private Boolean isAdmin;
+public class UpdatePasswordDTO {
+    private String oldPassword;
+    private String newPassword;
 }

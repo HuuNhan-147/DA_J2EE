@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Table(name = "orders")
 @Getter
 @Setter

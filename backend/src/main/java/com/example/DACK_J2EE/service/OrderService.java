@@ -91,6 +91,14 @@ public class OrderService {
         return orderRepository.findByUserId(userId);
     }
 
+    public List<Order> searchOrdersByCode(String orderCode) {
+        return orderRepository.findByOrderCodeContainingIgnoreCase(orderCode);
+    }
+
+    public List<Order> searchOrdersByUserName(String name) {
+        return orderRepository.findByUser_NameContainingIgnoreCase(name);
+    }
+
     public Order updateOrderPaymentStatus(Long orderId, String paymentStatus) {
         Order order = getOrderById(orderId);
         

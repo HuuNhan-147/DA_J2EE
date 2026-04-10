@@ -26,17 +26,20 @@ public class JwtTokenProvider {
 
     // Tạo token từ Authentication
     public String generateToken(Authentication authentication) {
-        return generateTokenFromId(authentication.getName());
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        return generateTokenFromId(authentication.getName(), isAdmin);
     }
 
     // Tạo token từ userId
-    public String generateTokenFromId(String userId) {
+    public String generateTokenFromId(String userId, boolean isAdmin) {
 
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
 
         return Jwts.builder()
                 .subject(userId)
+                .claim("isAdmin", isAdmin)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey(), Jwts.SIG.HS512)

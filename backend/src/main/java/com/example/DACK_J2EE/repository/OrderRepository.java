@@ -13,6 +13,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByOrderCode(String orderCode);
     List<Order> findByUserId(Long userId);
 
+    List<Order> findByOrderCodeContainingIgnoreCase(String orderCode);
+
+    @Query("SELECT o FROM Order o WHERE LOWER(o.user.name) LIKE LOWER(CONCAT('%', :name, '%'))")
+    List<Order> findByUser_NameContainingIgnoreCase(@org.springframework.data.repository.query.Param("name") String name);
+
     @Query("SELECT SUM(o.totalPrice) FROM Order o WHERE o.isPaid = true")
     Double getTotalRevenue();
 
